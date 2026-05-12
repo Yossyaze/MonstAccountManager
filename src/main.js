@@ -284,10 +284,10 @@ function renderMainContent(filtered) {
 }
 
 function renderDashboard() {
-  // 貸出可能キャラの集計
-  const lendableChars = accounts.flatMap((acc) =>
+  // 重要キャラ（お気に入り）の集計
+  const favoriteChars = accounts.flatMap((acc) =>
     (acc.characters || [])
-      .filter(c => c.lendable)
+      .filter(c => c.favorite)
       .map(c => ({ ...c, accountName: acc.name }))
   );
 
@@ -313,10 +313,10 @@ function renderDashboard() {
           </div>
         </div>
         <div class="stat-card-premium green">
-          <div class="stat-icon">${ICONS.check}</div>
+          <div class="stat-icon">${ICONS.star}</div>
           <div class="stat-info">
-            <span class="stat-label">貸出可能キャラ</span>
-            <span class="stat-value-big">${lendableChars.length}</span>
+            <span class="stat-label">重要キャラ</span>
+            <span class="stat-value-big">${favoriteChars.length}</span>
           </div>
         </div>
         <div class="stat-card-premium blue">
@@ -329,18 +329,19 @@ function renderDashboard() {
       </div>
 
       <div class="dashboard-grid">
-        <!-- 貸出ギャラリー -->
+        <!-- 重要キャラギャラリー -->
         <section class="dashboard-section gallery">
           <div class="section-header">
-            <h3>貸出可能キャラ（貸しモン）</h3>
-            <div class="section-badge">${lendableChars.length}</div>
+            <h3>重要キャラ（お気に入り）</h3>
+            <div class="section-badge">${favoriteChars.length}</div>
           </div>
           <div class="lendable-gallery">
-            ${lendableChars.length === 0 ? `
+            ${favoriteChars.length === 0 ? `
               <div class="empty-placeholder">
-                <p>貸出設定されたキャラはいません</p>
+                <p>お気に入り登録されたキャラはいません</p>
+                <small>アカウント一覧の各キャラを長押し（またはクリック）で登録できます</small>
               </div>
-            ` : lendableChars.map(c => `
+            ` : favoriteChars.map(c => `
               <div class="lend-item" title="${esc(c.name)} (${esc(c.accountName)})">
                 <img src="https://img.gamewith.jp/article_tools/monst/gacha/${c.id}.jpg" class="lend-icon" onerror="this.src='https://img.gamewith.jp/article_tools/monst/gacha/1.jpg'" />
                 <div class="lend-owner">${esc(c.accountName)}</div>
@@ -563,9 +564,9 @@ function renderCard(account, index) {
         </div>
         <div class="char-grid">
           ${visible.map((c, ci) => `
-            <div class="char-icon-wrapper ${c.lendable ? 'lendable' : ''}" data-acc="${index}" data-ci="${ci}" title="${esc(c.name)}${c.lendable ? ' (貸出可)' : ''}">
+            <div class="char-icon-wrapper ${c.favorite ? 'favorite' : ''}" data-acc="${index}" data-ci="${ci}" title="${esc(c.name)}${c.favorite ? ' (重要キャラ)' : ''}">
               <img src="https://img.gamewith.jp/article_tools/monst/gacha/${c.id}.jpg" class="char-icon" onerror="this.src='https://img.gamewith.jp/article_tools/monst/gacha/1.jpg'" />
-              ${c.lendable ? '<div class="lend-badge">L</div>' : ''}
+              ${c.favorite ? `<div class="favorite-star">${ICONS.star}</div>` : ''}
               <div class="remove-char" data-acc="${index}" data-ci="${ci}">&times;</div>
             </div>
           `).join('')}
@@ -812,28 +813,34 @@ function bindEvents() {
     });
   });
 
-  // 貸しモントグル
+  // 重要キャラトグル
   document.querySelectorAll('.char-icon-wrapper').forEach(w => {
     w.addEventListener('click', () => {
       const ai = w.dataset.acc;
       const ci = w.dataset.ci;
       if (ai !== undefined && ci !== undefined) {
         const ch = accounts[ai].characters[ci];
-        ch.lendable = !ch.lendable;
+        ch.favorite = !ch.favorite;
         save();
-        showToast(ch.lendable ? '貸出可に設定しました' : '貸出可を解除しました');
+        showToast(ch.favorite ? '重要キャラに設定しました' : '重要キャラを解除しました');
       }
     });
   });
 
   // エクスポート
   document.getElementById('export-btn')?.addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(accounts, null, 2)], { type: 'application/json' });
+    const exportData = {
+      accounts,
+      devices,
+      devicePresets,
+      version: '2.0'
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `monst_accounts_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `monst_manager_backup_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
-    showToast('エクスポートしました');
+    showToast('すべてのデータをエクスポートしました');
   });
 
   // インポート
@@ -848,12 +855,28 @@ function bindEvents() {
     reader.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
-        if (Array.isArray(data)) {
+        if (data.accounts && Array.isArray(data.accounts)) {
+          // 新形式 (オブジェクト)
+          accounts = data.accounts;
+          if (data.devices) devices = data.devices;
+          if (data.devicePresets) devicePresets = data.devicePresets;
+          
+          save(); // accountsの保存と再レンダリング
+          saveDevices(); // localStorageへの保存と再レンダリング
+          savePresets(); // localStorageへの保存
+          showToast('すべてのデータをインポートしました');
+        } else if (Array.isArray(data)) {
+          // 旧形式 (配列)
           accounts = data;
           save();
-          showToast('インポートが完了しました');
+          showToast('アカウント情報をインポートしました');
+        } else {
+          throw new Error('Invalid format');
         }
-      } catch { alert('不正な形式のファイルです'); }
+      } catch (err) { 
+        console.error(err);
+        alert('不正な形式のファイルです'); 
+      }
     };
     reader.readAsText(file);
   });

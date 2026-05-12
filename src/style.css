@@ -632,25 +632,35 @@ body.light-mode .account-card:hover {
   transition: border-color 0.2s;
 }
 
-.char-icon-wrapper.lendable .char-icon {
-  border-color: var(--accent-green);
-  box-shadow: 0 0 8px rgba(16,185,129,0.3);
+.char-icon-wrapper.favorite .char-icon {
+  border-color: var(--accent-amber);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
 }
 
-.lend-badge {
+.favorite-star {
   position: absolute;
   bottom: -4px; right: -4px;
-  background: var(--accent-green);
+  background: var(--accent-amber);
   color: #000;
-  font-size: 0.55rem;
-  font-weight: 800;
-  width: 16px; height: 16px;
+  width: 18px; height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   border: 2px solid var(--bg-surface);
   z-index: 3;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  animation: starPop 0.3s var(--ease-spring);
+}
+
+.favorite-star svg {
+  width: 10px; height: 10px;
+  fill: #000;
+}
+
+@keyframes starPop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
 }
 
 .remove-char {
@@ -929,8 +939,8 @@ body.light-mode .account-card:hover {
 }
 
 .btn-primary {
-  width: 100%;
-  padding: 12px;
+  width: fit-content;
+  padding: 10px 24px;
   background: linear-gradient(135deg, var(--accent-purple), #7c3aed);
   color: #fff;
   border: none;
@@ -940,6 +950,15 @@ body.light-mode .account-card:hover {
   cursor: pointer;
   font-family: var(--font-sans);
   transition: all 0.2s var(--ease);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-primary svg {
+  width: 18px;
+  height: 18px;
 }
 
 .btn-primary:hover {
@@ -1080,9 +1099,9 @@ body.light-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 .devices-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .device-rack {
@@ -1129,8 +1148,8 @@ body.light-mode ::-webkit-scrollbar-thumb:hover {
 
 .slots-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 320px));
+  gap: 20px;
   padding: 8px 4px;
 }
 
@@ -1288,8 +1307,8 @@ body.light-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 .add-slot-btn {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px dashed var(--border-subtle);
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px dashed var(--border-card);
   border-radius: var(--radius-lg);
   padding: 16px;
   color: var(--text-muted);
@@ -1297,22 +1316,32 @@ body.light-mode ::-webkit-scrollbar-thumb:hover {
   font-weight: 600;
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  transition: all 0.2s;
-  min-height: 60px;
+  gap: 12px;
+  transition: all 0.3s var(--ease);
+  min-height: 110px;
 }
 
 .add-slot-btn:hover {
-  background: rgba(139, 92, 246, 0.04);
+  background: rgba(139, 92, 246, 0.03);
   color: var(--accent-purple);
-  border-color: var(--accent-purple);
+  border-color: rgba(139, 92, 246, 0.4);
+  border-style: solid;
+  transform: translateY(-2px);
 }
 
 .add-slot-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
+  opacity: 0.6;
+  transition: all 0.3s;
+}
+
+.add-slot-btn:hover svg {
+  opacity: 1;
+  transform: scale(1.1);
 }
 
 /* --- アカウント選択オーバーレイ --- */
@@ -1539,7 +1568,14 @@ body.light-mode ::-webkit-scrollbar-thumb:hover {
 .usage-bar-bg { height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; }
 .usage-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple)); border-radius: 4px; transition: width 0.5s var(--ease); }
 
-.empty-placeholder { padding: 40px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border-subtle); border-radius: var(--radius-lg); }
+.empty-placeholder { 
+  grid-column: 1 / -1;
+  padding: 40px; 
+  text-align: center; 
+  color: var(--text-muted); 
+  border: 1px dashed var(--border-subtle); 
+  border-radius: var(--radius-lg); 
+}
 
 /* デバイスタイプセレクター */
 .device-type-selector {

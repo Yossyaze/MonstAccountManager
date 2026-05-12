@@ -41,7 +41,7 @@ async function init() {
   renderApp();
   
   try {
-    const res = await fetch('/data/characters.json');
+    const res = await fetch('./data/characters.json');
     allCharacters = await res.json();
   } catch (e) {
     console.error('キャラクターDB読み込み失敗:', e);

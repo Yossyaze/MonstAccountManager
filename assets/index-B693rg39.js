@@ -45,8 +45,8 @@
         <button class="btn-header" id="theme-toggle" title="テーマ切り替え">
           ${o===`dark`?e.sun:e.moon}
         </button>
-        <button class="btn-header" id="export-btn" title="エクスポート">${e.download}</button>
-        <button class="btn-header" id="import-btn" title="インポート">${e.upload}</button>
+        <button class="btn-header" id="export-btn" title="エクスポート">${e.upload}</button>
+        <button class="btn-header" id="import-btn" title="インポート">${e.download}</button>
         <input type="file" id="import-file" accept=".json" style="display: none;" />
       </div>
     </header>
@@ -190,7 +190,7 @@
         <p>${n?`別のキーワードをお試しください`:`右下の＋ボタンから最初のアカウントを追加しましょう`}</p>
       </div>
     `:`
-    <div class="accounts-grid">
+    <div class="account-grid">
       ${t.map((e,t)=>p(e,t)).join(``)}
     </div>
   `}function h(t,n){return`

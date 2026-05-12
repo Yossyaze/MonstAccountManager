@@ -13,7 +13,7 @@ export function renderAccountsView(filteredAccounts, searchQuery) {
   }
 
   return `
-    <div class="accounts-grid">
+    <div class="account-grid">
       ${filteredAccounts.map((a, i) => renderCard(a, i)).join('')}
     </div>
   `;

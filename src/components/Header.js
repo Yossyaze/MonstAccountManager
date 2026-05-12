@@ -33,8 +33,8 @@ export function renderHeader(currentNav, searchQuery, accounts, currentTheme) {
         <button class="btn-header" id="theme-toggle" title="テーマ切り替え">
           ${currentTheme === 'dark' ? ICONS.sun : ICONS.moon}
         </button>
-        <button class="btn-header" id="export-btn" title="エクスポート">${ICONS.download}</button>
-        <button class="btn-header" id="import-btn" title="インポート">${ICONS.upload}</button>
+        <button class="btn-header" id="export-btn" title="エクスポート">${ICONS.upload}</button>
+        <button class="btn-header" id="import-btn" title="インポート">${ICONS.download}</button>
         <input type="file" id="import-file" accept=".json" style="display: none;" />
       </div>
     </header>

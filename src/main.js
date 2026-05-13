@@ -39,6 +39,20 @@ async function init() {
     }
     return a;
   });
+
+  // 既存の割り当てデータから slotName を同期 (移行処理)
+  devices.forEach(d => {
+    (d.slots || []).forEach(s => {
+      if (s.accountId) {
+        const acc = accounts.find(a => a.id === s.accountId);
+        if (acc && !acc.slotName) {
+          acc.slotName = s.name;
+          changed = true;
+        }
+      }
+    });
+  });
+
   if (changed) saveAll();
 
   applyTheme();
@@ -346,8 +360,13 @@ function bindEvents() {
     const type = document.querySelector('input[name="d-type"]:checked')?.value || 'smartphone';
 
     if (editingDeviceIndex !== null) {
+      const oldName = devices[editingDeviceIndex].name;
       devices[editingDeviceIndex].name = name;
       devices[editingDeviceIndex].type = type;
+      // アカウント側の端末名も同期
+      accounts.forEach(a => {
+        if (a.device === oldName) a.device = name;
+      });
     } else {
       devices.push({ id: generateId(), name, type, slots: [] });
     }
@@ -388,6 +407,39 @@ function bindEvents() {
     });
   });
 
+  document.querySelectorAll('.edit-slot-name').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const di = btn.dataset.di;
+      const si = btn.dataset.si;
+      const slot = devices[di].slots[si];
+      const newName = prompt('アプリ名:', slot.name);
+      if (newName && newName !== slot.name) {
+        slot.name = newName;
+        // アサインされているアカウントの表示名も更新
+        const acc = accounts.find(a => a.id === slot.accountId);
+        if (acc) acc.slotName = newName;
+        saveAll();
+      }
+    });
+  });
+
+  document.querySelectorAll('.delete-slot').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const di = btn.dataset.di;
+      const si = btn.dataset.si;
+      const slot = devices[di].slots[si];
+      if (confirm(`枠「${slot.name}」を削除しますか？`)) {
+        const acc = accounts.find(a => a.id === slot.accountId);
+        if (acc) {
+          acc.device = '';
+          acc.slotName = '';
+        }
+        devices[di].slots.splice(si, 1);
+        saveAll();
+      }
+    });
+  });
+
   document.querySelectorAll('.slot-item.empty').forEach(item => {
     item.addEventListener('click', () => {
       const di = item.dataset.di;
@@ -403,7 +455,10 @@ function bindEvents() {
           const accId = sel.dataset.accId;
           devices[di].slots[si].accountId = accId;
           const acc = accounts.find(a => a.id === accId);
-          if (acc) acc.device = devices[di].name;
+          if (acc) {
+            acc.device = devices[di].name;
+            acc.slotName = devices[di].slots[si].name || `アプリ${parseInt(si) + 1}`;
+          }
           saveAll();
           overlay.remove();
         });
@@ -417,7 +472,10 @@ function bindEvents() {
       const di = btn.dataset.di;
       const si = btn.dataset.si;
       const acc = accounts.find(a => a.id === devices[di].slots[si].accountId);
-      if (acc) acc.device = '';
+      if (acc) {
+        acc.device = '';
+        acc.slotName = '';
+      }
       devices[di].slots[si].accountId = null;
       saveAll();
     });

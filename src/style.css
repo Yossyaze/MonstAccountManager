@@ -677,6 +677,23 @@ body.light-mode .account-card:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.char-grid::-webkit-scrollbar {
+  width: 4px;
+}
+.char-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+.char-grid::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+.char-grid:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .char-icon-wrapper {

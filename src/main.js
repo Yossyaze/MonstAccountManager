@@ -3,6 +3,8 @@ import { ICONS } from './constants/icons.js';
 import { generateId, esc, showToast } from './utils/helpers.js';
 import { storageService } from './services/storage.js';
 import { backupService } from './services/backup.js';
+import { auth, loginWithGoogle, logout, saveUserData, fetchUserData } from './services/firebase.js';
+import { onAuthStateChanged } from 'firebase/auth';
 
 // コンポーネントのインポート
 import { renderSidebar } from './components/Sidebar.js';
@@ -23,6 +25,8 @@ let searchQuery = '';
 let currentNav = 'dashboard';
 let editingIndex = null;
 let editingDeviceIndex = null;
+let currentUser = null;
+let isSyncing = false;
 
 // --- 初期化 ---
 async function init() {
@@ -35,7 +39,7 @@ async function init() {
     }
     return a;
   });
-  if (changed) storageService.saveAccounts(accounts);
+  if (changed) saveAll();
 
   applyTheme();
   renderApp();
@@ -53,6 +57,37 @@ async function init() {
       document.querySelectorAll('.search-dropdown.open').forEach(dd => dd.classList.remove('open'));
     }
   });
+
+  // Firebase認証状態監視
+  onAuthStateChanged(auth, async (user) => {
+    currentUser = user;
+    if (user) {
+      isSyncing = true;
+      const cloudData = await fetchUserData(user.uid);
+      if (cloudData) {
+        // クラウドにデータがある場合は同期（必要に応じてマージロジックを検討）
+        if (confirm('クラウド上のデータが見つかりました。同期しますか？\n(現在のローカルデータは上書きされます)')) {
+          accounts = cloudData.accounts || accounts;
+          devices = cloudData.devices || devices;
+          devicePresets = cloudData.devicePresets || devicePresets;
+          storageService.saveAccounts(accounts);
+          storageService.saveDevices(devices);
+          storageService.savePresets(devicePresets);
+        } else {
+          // ローカルデータをクラウドに保存
+          await saveUserData(user.uid, { accounts, devices, devicePresets });
+        }
+      } else {
+        // クラウドにデータがない場合は現在のデータを保存
+        await saveUserData(user.uid, { accounts, devices, devicePresets });
+      }
+      isSyncing = false;
+      showToast(`${user.displayName}としてログインしました`);
+    } else {
+      showToast('ログアウトしました');
+    }
+    renderApp();
+  });
 }
 
 // --- メインレンダリング ---
@@ -66,7 +101,7 @@ function renderApp() {
   });
 
   app.innerHTML = `
-    ${renderSidebar(currentNav)}
+    ${renderSidebar(currentNav, currentUser)}
     ${renderHeader(currentNav, searchQuery, accounts, currentTheme)}
     <main class="main-content">
       ${renderMainContent(filtered)}
@@ -122,6 +157,22 @@ function bindEvents() {
     renderApp();
   });
 
+  // ログイン
+  document.getElementById('login-btn')?.addEventListener('click', async () => {
+    try {
+      await loginWithGoogle();
+    } catch (e) {
+      alert('ログインに失敗しました: ' + e.message);
+    }
+  });
+
+  // ログアウト
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    if (confirm('ログアウトしますか？')) {
+      await logout();
+    }
+  });
+
   // バックアップ・エクスポート
   document.getElementById('export-btn')?.addEventListener('click', () => {
     backupService.exportData({ accounts, devices, devicePresets });
@@ -145,8 +196,7 @@ function bindEvents() {
         showToast('すべてのデータをインポートしました');
       } else if (Array.isArray(data)) {
         accounts = data;
-        storageService.saveAccounts(accounts);
-        renderApp();
+        saveAll();
         showToast('アカウント情報をインポートしました');
       } else {
         throw new Error('Invalid format');
@@ -180,9 +230,8 @@ function bindEvents() {
       accounts.push({ id: generateId(), name, monstId, mixiId, canLend, device: '', characters: [] });
       showToast('追加しました');
     }
-    storageService.saveAccounts(accounts);
+    saveAll();
     closeAccountModal();
-    renderApp();
   });
 
   // 編集・削除・コピー（イベント委譲を使わず、各要素にバインド）
@@ -206,8 +255,7 @@ function bindEvents() {
       const idx = parseInt(btn.dataset.index);
       if (confirm(`「${accounts[idx].name}」を削除しますか？`)) {
         accounts.splice(idx, 1);
-        storageService.saveAccounts(accounts);
-        renderApp();
+        saveAll();
       }
     });
   });
@@ -254,8 +302,7 @@ function bindEvents() {
             accounts[idx].characters.push({ id: cb.value, name: cb.dataset.name });
           }
         });
-        storageService.saveAccounts(accounts);
-        renderApp();
+        saveAll();
       });
     });
   });
@@ -267,8 +314,7 @@ function bindEvents() {
       const ai = btn.dataset.acc;
       const ci = btn.dataset.ci;
       accounts[ai].characters.splice(ci, 1);
-      storageService.saveAccounts(accounts);
-      renderApp();
+      saveAll();
     });
   });
 
@@ -279,8 +325,7 @@ function bindEvents() {
       if (ai !== undefined && ci !== undefined) {
         const ch = accounts[ai].characters[ci];
         ch.favorite = !ch.favorite;
-        storageService.saveAccounts(accounts);
-        renderApp();
+        saveAll();
       }
     });
   });
@@ -306,8 +351,7 @@ function bindEvents() {
     } else {
       devices.push({ id: generateId(), name, type, slots: [] });
     }
-    storageService.saveDevices(devices);
-    renderApp();
+    saveAll();
     document.getElementById('device-modal')?.classList.remove('visible');
   });
 
@@ -328,8 +372,7 @@ function bindEvents() {
       const idx = btn.dataset.index;
       if (confirm('削除しますか？')) {
         devices.splice(idx, 1);
-        storageService.saveDevices(devices);
-        renderApp();
+        saveAll();
       }
     });
   });
@@ -340,8 +383,7 @@ function bindEvents() {
       const name = prompt('アプリ名:');
       if (name) {
         devices[di].slots.push({ id: generateId(), name, accountId: null });
-        storageService.saveDevices(devices);
-        renderApp();
+        saveAll();
       }
     });
   });
@@ -386,7 +428,7 @@ function bindEvents() {
     const val = document.getElementById('f-device')?.value.trim();
     if (val && !devicePresets.includes(val)) {
       devicePresets.push(val);
-      storageService.savePresets(devicePresets);
+      saveAll();
       const container = document.getElementById('preset-container');
       if (container) container.innerHTML = renderPresets(devicePresets);
       document.getElementById('f-device').value = '';
@@ -399,7 +441,7 @@ function bindEvents() {
       e.stopPropagation();
       const val = btn.dataset.value;
       devicePresets = devicePresets.filter(p => p !== val);
-      storageService.savePresets(devicePresets);
+      saveAll();
       const container = document.getElementById('preset-container');
       if (container) container.innerHTML = renderPresets(devicePresets);
     });
@@ -426,6 +468,13 @@ function saveAll() {
   storageService.saveAccounts(accounts);
   storageService.saveDevices(devices);
   storageService.savePresets(devicePresets);
+  
+  if (currentUser && !isSyncing) {
+    saveUserData(currentUser.uid, { accounts, devices, devicePresets })
+      .then(() => console.log('Cloud synced'))
+      .catch(e => console.error('Cloud sync failed', e));
+  }
+  
   renderApp();
 }
 
